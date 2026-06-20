@@ -1,0 +1,62 @@
+package lib
+
+import (
+	"encoding/json"
+	"os"
+	"testing"
+)
+
+func TestFetchTranscript_Success(t *testing.T) {
+	videoID := "J0lVsnlEtyM"
+	languageCode := "en"
+
+	transcript, err := FetchTranscript(videoID, languageCode)
+	if err != nil {
+		t.Fatalf("Failed to fetch transcript: %v", err)
+	}
+
+	if transcript.VideoID != videoID {
+		t.Errorf("Expected video ID %s, got %s", videoID, transcript.VideoID)
+	}
+
+	if len(transcript.Snippets) == 0 {
+		t.Fatal("Expected snippets, got 0")
+	}
+
+	// Verify the first few snippets match expected content from Python
+	expectedFirst := "I've spent the last 20 years of my life"
+	if transcript.Snippets[0].Text != expectedFirst {
+		t.Errorf("Expected first snippet '%s', got '%s'", expectedFirst, transcript.Snippets[0].Text)
+	}
+
+	expectedSecond := "immersed in money. First through"
+	if transcript.Snippets[1].Text != expectedSecond {
+		t.Errorf("Expected second snippet '%s', got '%s'", expectedSecond, transcript.Snippets[1].Text)
+	}
+
+	// Write to a file for manual inspection or as requested
+	outputFile := "test_transcript_success.json"
+	data, err := json.MarshalIndent(transcript, "", "  ")
+	if err != nil {
+		t.Fatalf("Failed to marshal transcript: %v", err)
+	}
+
+	err = os.WriteFile(outputFile, data, 0644)
+	if err != nil {
+		t.Fatalf("Failed to write transcript to file: %v", err)
+	}
+	t.Logf("Transcript written to %s", outputFile)
+}
+
+func TestFetchTranscript_InvalidVideo(t *testing.T) {
+	videoID := "EnSJN9zl-yQ" // Bogus video ID
+	languageCode := "en"
+
+	_, err := FetchTranscript(videoID, languageCode)
+	if err == nil {
+		t.Fatal("Expected error for invalid video ID, but got nil")
+	}
+
+	// In the current implementation, a 404 or missing API key results in specific errors
+	t.Logf("Received expected error: %v", err)
+}

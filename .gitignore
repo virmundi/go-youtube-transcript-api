@@ -1,0 +1,7 @@
+# Binaries
+yt-transcript
+go-youtube-transcript-api
+
+# Test outputs
+lib/test_transcript_success.json
+*.json
