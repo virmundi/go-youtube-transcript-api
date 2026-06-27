@@ -19,6 +19,7 @@ type TranscriptMetadata struct {
 	ChannelID        string   `json:"channel_id"`
 	Keywords         []string `json:"keywords"`
 	ShortDescription string   `json:"short_description"`
+	Title            string
 }
 
 type TranscriptWithMetadata struct {

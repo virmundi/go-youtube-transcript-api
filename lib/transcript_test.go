@@ -102,4 +102,7 @@ func TestFetchTranscriptWithMetadata_Success(t *testing.T) {
 	if !strings.Contains(metadata.ShortDescription, "In this video I explain the most common mistakes investors make") {
 		t.Errorf("Short description does not contain expected text. Got: %s", metadata.ShortDescription)
 	}
+	if metadata.Title != "9 Investing Habits Keeping You Poor [BANKER EXPLAINS]" {
+		t.Errorf("Title does not match expected. Got: %s", metadata.Title)
+	}
 }

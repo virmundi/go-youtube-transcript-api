@@ -167,6 +167,9 @@ func extractMetadata(data map[string]interface{}) TranscriptMetadata {
 			}
 		}
 	}
+	if title, ok := videoDetails["title"].(string); ok {
+		metadata.Title = title
+	}
 
 	return metadata
 }
