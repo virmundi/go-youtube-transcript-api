@@ -52,6 +52,7 @@ func main() {
 	videoID := "J0lVsnlEtyM"
 	languageCode := "en"
 
+	// Simplified fetch (Transcript only)
 	transcript, err := lib.FetchTranscript(videoID, languageCode)
 	if err != nil {
 		log.Fatalf("Error fetching transcript: %v", err)
@@ -60,6 +61,15 @@ func main() {
 	for _, snippet := range transcript.Snippets {
 		fmt.Printf("[%0.2fs] %s\n", snippet.Start, snippet.Text)
 	}
+
+	// Fetch with Metadata (Channel details, Keywords, Description)
+	result, err := lib.FetchTranscriptWithMetadata(videoID, languageCode)
+	if err != nil {
+		log.Fatalf("Error fetching with metadata: %v", err)
+	}
+
+	fmt.Printf("Channel: %s\n", result.Metadata.ChannelName)
+	fmt.Printf("Description: %s\n", result.Metadata.ShortDescription)
 }
 ```
 

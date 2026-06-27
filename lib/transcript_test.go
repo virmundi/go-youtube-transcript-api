@@ -3,6 +3,7 @@ package lib
 import (
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -59,4 +60,46 @@ func TestFetchTranscript_InvalidVideo(t *testing.T) {
 
 	// In the current implementation, a 404 or missing API key results in specific errors
 	t.Logf("Received expected error: %v", err)
+}
+
+func TestFetchTranscriptWithMetadata_Success(t *testing.T) {
+	videoID := "J0lVsnlEtyM"
+	languageCode := "en"
+
+	result, err := FetchTranscriptWithMetadata(videoID, languageCode)
+	if err != nil {
+		t.Fatalf("Failed to fetch transcript with metadata: %v", err)
+	}
+
+	if result.Transcript == nil {
+		t.Fatal("Expected transcript, got nil")
+	}
+
+	if result.Transcript.VideoID != videoID {
+		t.Errorf("Expected video ID %s, got %s", videoID, result.Transcript.VideoID)
+	}
+
+	metadata := result.Metadata
+	expectedChannelName := "Felix & Friends (Goat Academy)"
+	if metadata.ChannelName != expectedChannelName {
+		t.Errorf("Expected channel name '%s', got '%s'", expectedChannelName, metadata.ChannelName)
+	}
+
+	expectedChannelID := "UCJtfma0mE_XrBAD9uakcjfA"
+	if metadata.ChannelID != expectedChannelID {
+		t.Errorf("Expected channel ID '%s', got '%s'", expectedChannelID, metadata.ChannelID)
+	}
+
+	if len(metadata.Keywords) == 0 {
+		t.Errorf("Expected keywords, got 0")
+	}
+
+	expectedFirstKeyword := "felix & friends"
+	if metadata.Keywords[0] != expectedFirstKeyword {
+		t.Errorf("Expected first keyword '%s', got '%s'", expectedFirstKeyword, metadata.Keywords[0])
+	}
+
+	if !strings.Contains(metadata.ShortDescription, "In this video I explain the most common mistakes investors make") {
+		t.Errorf("Short description does not contain expected text. Got: %s", metadata.ShortDescription)
+	}
 }

@@ -6,7 +6,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"html"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"regexp"
 	"strings"
@@ -18,6 +18,15 @@ const (
 
 // FetchTranscript fetches the transcript for a given video ID and language.
 func FetchTranscript(videoID, languageCode string) (*Transcript, error) {
+	result, err := FetchTranscriptWithMetadata(videoID, languageCode)
+	if err != nil {
+		return nil, err
+	}
+	return result.Transcript, nil
+}
+
+// FetchTranscriptWithMetadata fetches the transcript and metadata for a given video ID and language.
+func FetchTranscriptWithMetadata(videoID, languageCode string) (*TranscriptWithMetadata, error) {
 	client := NewClient()
 
 	// 1. Fetch the video watch page
@@ -25,13 +34,15 @@ func FetchTranscript(videoID, languageCode string) (*Transcript, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get video page: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 
 	if resp.StatusCode != 200 {
 		return nil, ErrVideoUnavailable
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read video page body: %w", err)
 	}
@@ -42,20 +53,41 @@ func FetchTranscript(videoID, languageCode string) (*Transcript, error) {
 		return nil, err
 	}
 
-	// 3. Call the InnerTube API to get transcript list
-	transcriptList, err := fetchTranscriptList(client, videoID, apiKey)
+	// 3. Call the InnerTube API to get player response (includes transcript list and metadata)
+	playerResponse, err := fetchPlayerResponse(client, videoID, apiKey)
 	if err != nil {
 		return nil, err
 	}
 
-	// 4. Find the correct transcript URL
+	// 4. Extract transcript list renderer
+	captions, ok := playerResponse["captions"].(map[string]interface{})
+	if !ok {
+		return nil, ErrTranscriptNotFound
+	}
+	transcriptList, ok := captions["playerCaptionsTracklistRenderer"].(map[string]interface{})
+	if !ok {
+		return nil, ErrTranscriptNotFound
+	}
+
+	// 5. Find the correct transcript URL
 	transcriptURL, isGenerated, err := findTranscriptURL(transcriptList, languageCode)
 	if err != nil {
 		return nil, err
 	}
 
-	// 5. Fetch and parse the XML transcript
-	return fetchAndParseXML(client, videoID, languageCode, transcriptURL, isGenerated)
+	// 6. Fetch and parse the XML transcript
+	transcript, err := fetchAndParseXML(client, videoID, languageCode, transcriptURL, isGenerated)
+	if err != nil {
+		return nil, err
+	}
+
+	// 7. Extract metadata
+	metadata := extractMetadata(playerResponse)
+
+	return &TranscriptWithMetadata{
+		Transcript: transcript,
+		Metadata:   metadata,
+	}, nil
 }
 
 func extractAPIKey(html string) (string, error) {
@@ -67,7 +99,7 @@ func extractAPIKey(html string) (string, error) {
 	return matches[1], nil
 }
 
-func fetchTranscriptList(client *Client, videoID, apiKey string) (map[string]interface{}, error) {
+func fetchPlayerResponse(client *Client, videoID, apiKey string) (map[string]interface{}, error) {
 	apiURL := fmt.Sprintf("https://www.youtube.com/youtubei/v1/player?key=%s", apiKey)
 
 	body := map[string]interface{}{
@@ -96,7 +128,9 @@ func fetchTranscriptList(client *Client, videoID, apiKey string) (map[string]int
 	if err != nil {
 		return nil, fmt.Errorf("failed to perform request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("api request failed with status: %d", resp.StatusCode)
@@ -107,17 +141,34 @@ func fetchTranscriptList(client *Client, videoID, apiKey string) (map[string]int
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	captions, ok := data["captions"].(map[string]interface{})
+	return data, nil
+}
+
+func extractMetadata(data map[string]interface{}) TranscriptMetadata {
+	metadata := TranscriptMetadata{}
+	videoDetails, ok := data["videoDetails"].(map[string]interface{})
 	if !ok {
-		return nil, ErrTranscriptNotFound
+		return metadata
 	}
 
-	renderer, ok := captions["playerCaptionsTracklistRenderer"].(map[string]interface{})
-	if !ok {
-		return nil, ErrTranscriptNotFound
+	if author, ok := videoDetails["author"].(string); ok {
+		metadata.ChannelName = author
+	}
+	if channelID, ok := videoDetails["channelId"].(string); ok {
+		metadata.ChannelID = channelID
+	}
+	if shortDescription, ok := videoDetails["shortDescription"].(string); ok {
+		metadata.ShortDescription = shortDescription
+	}
+	if keywords, ok := videoDetails["keywords"].([]interface{}); ok {
+		for _, k := range keywords {
+			if keyword, ok := k.(string); ok {
+				metadata.Keywords = append(metadata.Keywords, keyword)
+			}
+		}
 	}
 
-	return renderer, nil
+	return metadata
 }
 
 func findTranscriptURL(transcriptList map[string]interface{}, languageCode string) (string, bool, error) {
@@ -161,13 +212,15 @@ func fetchAndParseXML(client *Client, videoID, languageCode, url string, isGener
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch xml: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to fetch xml, status: %d", resp.StatusCode)
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read xml body: %w", err)
 	}
