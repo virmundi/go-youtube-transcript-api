@@ -20,6 +20,7 @@ type TranscriptMetadata struct {
 	Keywords         []string `json:"keywords"`
 	ShortDescription string   `json:"short_description"`
 	Title            string
+	UploadDate       string
 }
 
 type TranscriptWithMetadata struct {

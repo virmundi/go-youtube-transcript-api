@@ -53,8 +53,9 @@ func FetchTranscriptWithMetadata(videoID, languageCode string) (*TranscriptWithM
 		return nil, err
 	}
 
-	// 3. Call the InnerTube API to get player response (includes transcript list and metadata)
-	playerResponse, err := fetchPlayerResponse(client, videoID, apiKey)
+	// 3. Call the InnerTube API to get player response
+	// First call with ANDROID client to get captions and base metadata
+	playerResponse, err := fetchPlayerResponse(client, videoID, apiKey, "ANDROID", "20.10.38")
 	if err != nil {
 		return nil, err
 	}
@@ -84,6 +85,15 @@ func FetchTranscriptWithMetadata(videoID, languageCode string) (*TranscriptWithM
 	// 7. Extract metadata
 	metadata := extractMetadata(playerResponse)
 
+	// 8. Second call with WEB client to get UploadDate
+	webPlayerResponse, err := fetchPlayerResponse(client, videoID, apiKey, "WEB", "2.20240320.01.00")
+	if err == nil {
+		webMetadata := extractMetadata(webPlayerResponse)
+		if webMetadata.UploadDate != "" {
+			metadata.UploadDate = webMetadata.UploadDate
+		}
+	}
+
 	return &TranscriptWithMetadata{
 		Transcript: transcript,
 		Metadata:   metadata,
@@ -99,14 +109,14 @@ func extractAPIKey(html string) (string, error) {
 	return matches[1], nil
 }
 
-func fetchPlayerResponse(client *Client, videoID, apiKey string) (map[string]interface{}, error) {
+func fetchPlayerResponse(client *Client, videoID, apiKey, clientName, clientVersion string) (map[string]interface{}, error) {
 	apiURL := fmt.Sprintf("https://www.youtube.com/youtubei/v1/player?key=%s", apiKey)
 
 	body := map[string]interface{}{
 		"context": map[string]interface{}{
 			"client": map[string]interface{}{
-				"clientName":    "ANDROID",
-				"clientVersion": "20.10.38",
+				"clientName":    clientName,
+				"clientVersion": clientVersion,
 			},
 		},
 		"videoId": videoID,
@@ -147,28 +157,37 @@ func fetchPlayerResponse(client *Client, videoID, apiKey string) (map[string]int
 func extractMetadata(data map[string]interface{}) TranscriptMetadata {
 	metadata := TranscriptMetadata{}
 	videoDetails, ok := data["videoDetails"].(map[string]interface{})
-	if !ok {
-		return metadata
-	}
-
-	if author, ok := videoDetails["author"].(string); ok {
-		metadata.ChannelName = author
-	}
-	if channelID, ok := videoDetails["channelId"].(string); ok {
-		metadata.ChannelID = channelID
-	}
-	if shortDescription, ok := videoDetails["shortDescription"].(string); ok {
-		metadata.ShortDescription = shortDescription
-	}
-	if keywords, ok := videoDetails["keywords"].([]interface{}); ok {
-		for _, k := range keywords {
-			if keyword, ok := k.(string); ok {
-				metadata.Keywords = append(metadata.Keywords, keyword)
+	if ok {
+		if author, ok := videoDetails["author"].(string); ok {
+			metadata.ChannelName = author
+		}
+		if channelID, ok := videoDetails["channelId"].(string); ok {
+			metadata.ChannelID = channelID
+		}
+		if shortDescription, ok := videoDetails["shortDescription"].(string); ok {
+			metadata.ShortDescription = shortDescription
+		}
+		if keywords, ok := videoDetails["keywords"].([]interface{}); ok {
+			for _, k := range keywords {
+				if keyword, ok := k.(string); ok {
+					metadata.Keywords = append(metadata.Keywords, keyword)
+				}
 			}
 		}
+		if title, ok := videoDetails["title"].(string); ok {
+			metadata.Title = title
+		}
 	}
-	if title, ok := videoDetails["title"].(string); ok {
-		metadata.Title = title
+
+	// Try to extract UploadDate from microformat
+	if microformat, ok := data["microformat"].(map[string]interface{}); ok {
+		if renderer, ok := microformat["playerMicroformatRenderer"].(map[string]interface{}); ok {
+			if publishDate, ok := renderer["publishDate"].(string); ok {
+				metadata.UploadDate = publishDate
+			} else if uploadDate, ok := renderer["uploadDate"].(string); ok {
+				metadata.UploadDate = uploadDate
+			}
+		}
 	}
 
 	return metadata

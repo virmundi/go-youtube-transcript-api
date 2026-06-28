@@ -105,4 +105,9 @@ func TestFetchTranscriptWithMetadata_Success(t *testing.T) {
 	if metadata.Title != "9 Investing Habits Keeping You Poor [BANKER EXPLAINS]" {
 		t.Errorf("Title does not match expected. Got: %s", metadata.Title)
 	}
+
+	expectedUploadDate := "2023-08-18T13:00:06-07:00"
+	if metadata.UploadDate != expectedUploadDate {
+		t.Errorf("Expected upload date '%s', got '%s'", expectedUploadDate, metadata.UploadDate)
+	}
 }
