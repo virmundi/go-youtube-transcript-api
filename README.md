@@ -12,17 +12,23 @@ A Go implementation of the popular [youtube-transcript-api](https://github.com/j
 ## Installation
 
 ```bash
-go get go-youtube-transcript-api
+go get github.com/virmundi/go-youtube-transcript-api
 ```
 
 ## Usage
 
 ### As a Command Line Tool
 
-Build the binary and run it with a video ID:
+Install the CLI:
 
 ```bash
-go build -o yt-transcript .
+go install github.com/virmundi/go-youtube-transcript-api/cmd/yt-transcript@latest
+```
+
+Or build the binary and run it:
+
+```bash
+go build -o yt-transcript ./cmd/yt-transcript
 ./yt-transcript <VIDEO_ID>
 ```
 
@@ -36,7 +42,7 @@ Example:
 
 ### As a Library
 
-Import the `lib` package into your Go project:
+Import the package into your Go project:
 
 ```go
 package main
@@ -45,7 +51,7 @@ import (
 	"fmt"
 	"log"
 
-	"go-youtube-transcript-api/lib"
+	"github.com/virmundi/go-youtube-transcript-api"
 )
 
 func main() {
@@ -53,7 +59,7 @@ func main() {
 	languageCode := "en"
 
 	// Simplified fetch (Transcript only)
-	transcript, err := lib.FetchTranscript(videoID, languageCode)
+	transcript, err := youtubetranscript.FetchTranscript(videoID, languageCode)
 	if err != nil {
 		log.Fatalf("Error fetching transcript: %v", err)
 	}
@@ -63,7 +69,7 @@ func main() {
 	}
 
 	// Fetch with Metadata (Channel details, Keywords, Description)
-	result, err := lib.FetchTranscriptWithMetadata(videoID, languageCode)
+	result, err := youtubetranscript.FetchTranscriptWithMetadata(videoID, languageCode)
 	if err != nil {
 		log.Fatalf("Error fetching with metadata: %v", err)
 	}
@@ -78,22 +84,21 @@ func main() {
 If you have Go installed, you can run it directly:
 
 ```bash
-go run . J0lVsnlEtyM --language en
+go run ./cmd/yt-transcript J0lVsnlEtyM --language en
 ```
 
 ## Running Tests
 
-To verify the implementation against baseline Python data:
+To verify the implementation:
 
 ```bash
-go test -v ./lib/...
+go test -v ./...
 ```
 
 ## Project Structure
 
-- `lib/`: Core library logic for fetching and parsing transcripts.
-- `cmd/`: CLI implementation using `cobra`.
-- `main.go`: Application entry point.
+- `cmd/`: CLI implementation.
+- Root directory (`client.go`, `transcript.go`, etc.): Core library logic.
 
 ## License
 

@@ -1,4 +1,4 @@
-package lib
+package youtubetranscript
 
 type TranscriptSnippet struct {
 	Text     string  `json:"text"`

@@ -1,4 +1,4 @@
-module go-youtube-transcript-api
+module github.com/virmundi/go-youtube-transcript-api
 
 go 1.25.1
 

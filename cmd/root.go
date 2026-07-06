@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"go-youtube-transcript-api/lib"
+	"github.com/virmundi/go-youtube-transcript-api"
 
 	"github.com/spf13/cobra"
 )
@@ -15,14 +15,14 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "go-youtube-transcript-api [videoID]",
+	Use:   "yt-transcript [videoID]",
 	Short: "A Go application to fetch YouTube transcripts",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		videoID := args[0]
 		fmt.Printf("Fetching transcript for video ID: %s in language: %s\n", videoID, languageCode)
 
-		transcript, err := lib.FetchTranscript(videoID, languageCode)
+		transcript, err := youtubetranscript.FetchTranscript(videoID, languageCode)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 			os.Exit(1)
